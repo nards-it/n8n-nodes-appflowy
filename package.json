@@ -1,19 +1,19 @@
 {
-  "name": "n8n-nodes-<...>",
+  "name": "n8n-nodes-appflowy",
   "version": "0.1.0",
-  "description": "",
+  "description": "n8n Community Node for AppFlowy - a privacy-first, open source workspace for your notes, wikis, projects, and more",
   "keywords": [
     "n8n-community-node-package"
   ],
   "license": "MIT",
-  "homepage": "",
+  "homepage": "https://octionic.com",
   "author": {
-    "name": "",
-    "email": ""
+    "name": "Mario Haarmann",
+    "email": "info@octionic.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/<...>/n8n-nodes-<...>.git"
+    "url": "https://github.com/octionic/n8n-nodes-appflowy.git"
   },
   "engines": {
     "node": ">=18.10",
