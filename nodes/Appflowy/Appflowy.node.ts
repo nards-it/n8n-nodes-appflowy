@@ -3,6 +3,7 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	IDataObject,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
@@ -10,6 +11,7 @@ export class AppFlowy implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'AppFlowy',
 		name: 'appflowy',
+		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		icon: 'file:appflowy.svg',
 		group: ['transform'],
 		version: 1,
@@ -19,59 +21,91 @@ export class AppFlowy implements INodeType {
 		},
 		inputs: ['main'],
 		outputs: ['main'],
-		properties: [
-			// Node properties which the user gets displayed and
-			// can change on the node.
+		credentials: [
 			{
-				displayName: 'My String2',
-				name: 'myString',
-				type: 'string',
-				default: '',
-				placeholder: 'Placeholder value',
-				description: 'The description text',
+				name: 'appflowyApi',
+				required: true,
+			},
+		],
+		properties: [
+			{
+				displayName: 'Resource',
+				name: 'resource',
+				type: 'options',
+				noDataExpression: true,
+				options: [
+					{
+						name: 'Auth',
+						value: 'auth',
+					},
+				],
+				default: 'auth',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['auth'],
+					},
+				},
+				options: [
+					{
+						name: 'Login',
+						value: 'login',
+						description: 'Login to AppFlowy',
+						action: 'Login to AppFlowy',
+					},
+				],
+				default: 'login',
 			},
 		],
 	};
 
-	// The function below is responsible for actually doing whatever this node
-	// is supposed to do. In this case, we're just appending the `myString` property
-	// with whatever the user has entered.
-	// You can make async calls and use `await`.
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
+		const returnData: IDataObject[] = [];
+		const resource = this.getNodeParameter('resource', 0) as string;
+		const operation = this.getNodeParameter('operation', 0) as string;
+		const credentials = await this.getCredentials('appflowyApi');
 
-		let item: INodeExecutionData;
-		let myString: string;
-
-		// Iterates over all input items and add the key "myString" with the
-		// value the parameter "myString" resolves to.
-		// (This could be a different value for each item in case it contains an expression)
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+		// For each item
+		for (let i = 0; i < items.length; i++) {
 			try {
-				myString = this.getNodeParameter('myString', itemIndex, '') as string;
-				item = items[itemIndex];
+				if (resource === 'auth') {
+					if (operation === 'login') {
+						// Login request
+						const body = {
+							email: credentials.username,
+							password: credentials.password,
+						};
 
-				item.json.myString = myString;
-			} catch (error) {
-				// This node should never fail but we want to showcase how
-				// to handle errors.
-				if (this.continueOnFail()) {
-					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
-				} else {
-					// Adding `itemIndex` allows other workflows to handle this error
-					if (error.context) {
-						// If the error thrown already contains the context property,
-						// only append the itemIndex
-						error.context.itemIndex = itemIndex;
-						throw error;
+						const response = await this.helpers.request({
+							method: 'POST',
+							url: `${credentials.host}/gotrue/token?grant_type=password`,
+							headers: {
+								'Content-Type': 'application/json',
+							},
+							body,
+							json: true,
+						});
+
+						returnData.push(response as IDataObject);
 					}
-					throw new NodeOperationError(this.getNode(), error, {
-						itemIndex,
-					});
 				}
+			} catch (error) {
+				if (this.continueOnFail()) {
+					returnData.push({ error: error.message });
+					continue;
+				}
+				throw new NodeOperationError(this.getNode(), error, {
+					itemIndex: i,
+				});
 			}
 		}
 
-		return [items];
+		return [this.helpers.returnJsonArray(returnData)];
 	}
 }
