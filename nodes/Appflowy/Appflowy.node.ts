@@ -35,11 +35,11 @@ export class AppFlowy implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Auth',
-						value: 'auth',
+						name: 'Workspace',
+						value: 'workspace',
 					},
 				],
-				default: 'auth',
+				default: 'workspace',
 			},
 			{
 				displayName: 'Operation',
@@ -48,18 +48,18 @@ export class AppFlowy implements INodeType {
 				noDataExpression: true,
 				displayOptions: {
 					show: {
-						resource: ['auth'],
+						resource: ['workspace'],
 					},
 				},
 				options: [
 					{
-						name: 'Login',
-						value: 'login',
-						description: 'Login to AppFlowy',
-						action: 'Login to AppFlowy',
+						name: 'Get Many',
+						value: 'getAll',
+						description: 'Get many workspaces',
+						action: 'Get many workspaces',
 					},
 				],
-				default: 'login',
+				default: 'getAll',
 			},
 		],
 	};
@@ -71,31 +71,85 @@ export class AppFlowy implements INodeType {
 		const operation = this.getNodeParameter('operation', 0) as string;
 		const credentials = await this.getCredentials('appflowyApi');
 
+		// Get the stored tokens
+		const nodeData = this.getWorkflowStaticData('node');
+		let accessToken = nodeData.accessToken as string | undefined;
+
+		// Function to perform login and store tokens
+		const authenticate = async () => {
+			const response = await this.helpers.request({
+				method: 'POST',
+				url: `${credentials.host}/gotrue/token?grant_type=password`,
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: {
+					email: credentials.username,
+					password: credentials.password,
+				},
+				json: true,
+			});
+
+			// Store the tokens
+			nodeData.accessToken = response.access_token;
+			nodeData.refreshToken = response.refresh_token;
+			accessToken = response.access_token;
+
+			return response.access_token;
+		};
+
+		// If we don't have an access token, authenticate
+		if (!accessToken) {
+			accessToken = await authenticate();
+		}
+
 		// For each item
 		for (let i = 0; i < items.length; i++) {
 			try {
-				if (resource === 'auth') {
-					if (operation === 'login') {
-						// Login request
-						const body = {
-							email: credentials.username,
-							password: credentials.password,
-						};
-
+				if (resource === 'workspace') {
+					if (operation === 'getAll') {
+						// Get workspaces request
 						const response = await this.helpers.request({
-							method: 'POST',
-							url: `${credentials.host}/gotrue/token?grant_type=password`,
+							method: 'GET',
+							url: `${credentials.host}/api/workspace`,
 							headers: {
-								'Content-Type': 'application/json',
+								'Authorization': `Bearer ${accessToken}`,
 							},
-							body,
 							json: true,
 						});
 
-						returnData.push(response as IDataObject);
+						returnData.push(...(Array.isArray(response) ? response : [response]));
 					}
 				}
 			} catch (error) {
+				// If we get a 401, try to authenticate and retry the request
+				if (error.response?.status === 401) {
+					try {
+						accessToken = await authenticate();
+						// Retry the request with new token
+						if (resource === 'workspace' && operation === 'getAll') {
+							const response = await this.helpers.request({
+								method: 'GET',
+								url: `${credentials.host}/api/workspace`,
+								headers: {
+									'Authorization': `Bearer ${accessToken}`,
+								},
+								json: true,
+							});
+							returnData.push(...(Array.isArray(response) ? response : [response]));
+							continue;
+						}
+					} catch (retryError) {
+						if (this.continueOnFail()) {
+							returnData.push({ error: retryError.message });
+							continue;
+						}
+						throw new NodeOperationError(this.getNode(), retryError, {
+							itemIndex: i,
+						});
+					}
+				}
+
 				if (this.continueOnFail()) {
 					returnData.push({ error: error.message });
 					continue;
