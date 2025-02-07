@@ -7,7 +7,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-export class AppFlowy implements INodeType {
+export class Appflowy implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'AppFlowy',
 		name: 'appflowy',
