@@ -4,25 +4,26 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
 
-export class ExampleNode implements INodeType {
+export class AppFlowy implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Example Node',
-		name: 'exampleNode',
+		displayName: 'AppFlowy',
+		name: 'appflowy',
+		icon: 'file:appflowy.svg',
 		group: ['transform'],
 		version: 1,
-		description: 'Basic Example Node',
+		description: 'Consume AppFlowy API',
 		defaults: {
-			name: 'Example Node',
+			name: 'AppFlowy',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main'],
+		outputs: ['main'],
 		properties: [
 			// Node properties which the user gets displayed and
 			// can change on the node.
 			{
-				displayName: 'My String',
+				displayName: 'My String2',
 				name: 'myString',
 				type: 'string',
 				default: '',
