@@ -2,7 +2,7 @@ import type { ICredentialType, INodeProperties } from 'n8n-workflow';
 
 // https://github.com/AppFlowy-IO/AppFlowy-Docs/blob/main/documentation/appflowy-cloud/openapi/Apis/OAuthApi.md#gotruetoken
 
-export class AppFlowyApi implements ICredentialType {
+export class AppflowyApi implements ICredentialType {
 	name = 'appflowyApi';
 
 	displayName = 'AppFlowy API';
