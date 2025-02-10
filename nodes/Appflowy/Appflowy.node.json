@@ -1,0 +1,19 @@
+{
+	"node": "n8n-nodes-appflowy",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Productivity"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://github.com/octionic/n8n-nodes-appflowy/blob/master/README.md"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/octionic/n8n-nodes-appflowy/blob/master/README.md"
+			}
+		],
+		"generic": []
+	}
+}
