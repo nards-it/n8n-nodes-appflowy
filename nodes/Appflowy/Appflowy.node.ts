@@ -167,7 +167,6 @@ export class Appflowy implements INodeType {
 		const returnData: IDataObject[] = [];
 		const resource = this.getNodeParameter('resource', 0) as string;
 		const operation = this.getNodeParameter('operation', 0) as string;
-		const credentials = await this.getCredentials('appflowyApi');
 
 		// Get the stored tokens
 		const nodeData = this.getWorkflowStaticData('node');
@@ -183,63 +182,21 @@ export class Appflowy implements INodeType {
 			try {
 				if (resource === 'workspace') {
 					if (operation === 'getAll') {
-						// Get workspaces request
-						const response = await this.helpers.request({
-							method: 'GET',
-							url: `${credentials.host}/api/workspace`,
-							headers: {
-								'Authorization': `Bearer ${accessToken}`,
-							},
-							json: true,
-						});
-						this.logger.info('Response:', { response });
-						returnData.push(...(Array.isArray(response) ? response : [response]));
+						const endpoint = '/api/workspace';
+						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
+						returnData.push(...response.data);
 					}
 				}
 				if (resource === 'database') {
 					if (operation === 'getAll') {
-						// Get databases request
 						const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
-						const response = await this.helpers.request({
-							method: 'GET',
-							url: `${credentials.host}/api/workspace/${workspaceId}/database`,
-							headers: {
-								'Authorization': `Bearer ${accessToken}`,
-							},
-							json: true,
-						});
+
+						const endpoint = `/api/workspace/${workspaceId}/database`;
+						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
 						returnData.push(...response.data);
 					}
 				}
 			} catch (error) {
-				// If we get a 401, try to authenticate and retry the request
-				if (error.response?.status === 401) {
-					try {
-						accessToken = await getAccessToken.call(this);
-						// Retry the request with new token
-						if (resource === 'workspace' && operation === 'getAll') {
-							const response = await this.helpers.request({
-								method: 'GET',
-								url: `${credentials.host}/api/workspace`,
-								headers: {
-									'Authorization': `Bearer ${accessToken}`,
-								},
-								json: true,
-							});
-							returnData.push(...(Array.isArray(response) ? response : [response]));
-							continue;
-						}
-					} catch (retryError) {
-						if (this.continueOnFail()) {
-							returnData.push({ error: retryError.message });
-							continue;
-						}
-						throw new NodeOperationError(this.getNode(), retryError, {
-							itemIndex: i,
-						});
-					}
-				}
-
 				if (this.continueOnFail()) {
 					returnData.push({ error: error.message });
 					continue;
