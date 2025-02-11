@@ -7,8 +7,8 @@ import type {
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
-import { appflowyApiRequest, toOptions, authenticate } from './GenericFunctions';
-import type { LoadedResource } from './types';
+import { appflowyApiRequest, toOptions, getAccessToken } from './GenericFunctions';
+import type { LoadedResource, Workspace } from './types';
 
 export class Appflowy implements INodeType {
 	description: INodeTypeDescription = {
@@ -149,14 +149,14 @@ export class Appflowy implements INodeType {
 	methods= {
 		loadOptions: {
 			async getWorkspaceIds(this: ILoadOptionsFunctions) {
-				this.logger.info('Test here');
 				const endpoint = '/api/workspace';
-				const workspaces = (await appflowyApiRequest.call(
-					this,
-					'GET',
-					endpoint,
-				)) as LoadedResource[];
-				this.logger.info('Workspaces response:', workspaces);
+				const response = await appflowyApiRequest.call(this, 'GET', endpoint);
+
+				const workspaces = response.data.map((workspace: Workspace) => ({
+					id: workspace.workspace_id,
+					name: workspace.workspace_name,
+				})) as LoadedResource[];
+
 				return toOptions(workspaces);
 			},
 		},
@@ -175,7 +175,7 @@ export class Appflowy implements INodeType {
 
 		// If we don't have an access token, authenticate
 		if (!accessToken) {
-			accessToken = await authenticate.call(this);
+			accessToken = await getAccessToken.call(this);
 		}
 
 		// For each item
@@ -215,7 +215,7 @@ export class Appflowy implements INodeType {
 				// If we get a 401, try to authenticate and retry the request
 				if (error.response?.status === 401) {
 					try {
-						accessToken = await authenticate.call(this);
+						accessToken = await getAccessToken.call(this);
 						// Retry the request with new token
 						if (resource === 'workspace' && operation === 'getAll') {
 							const response = await this.helpers.request({

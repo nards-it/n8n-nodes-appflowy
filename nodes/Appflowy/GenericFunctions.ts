@@ -21,7 +21,7 @@ export async function appflowyApiRequest(
 	qs: IDataObject = {},
 ) {
 	const credentials = await this.getCredentials('appflowyApi');
-	const accessToken = await authenticate.call(this);
+	const accessToken = await getAccessToken.call(this);
 
 	const options: IRequestOptions = {
 		headers: {
@@ -45,13 +45,21 @@ export async function appflowyApiRequest(
 	try {
 		const responseData = await this.helpers.request(options);
 
-		// Reformat the response data
-		const formattedData = responseData.data.map((workspace: any) => ({
-			id: workspace.workspace_id,
-			name: workspace.workspace_name,
-		}));
+		// Check if the response status is 401
+		if (responseData.status === 401) {
+			// Attempt to re-authenticate
+			const accessToken = await getAccessToken.call(this, true);
+			// Ensure headers is defined
+			if (!options.headers) {
+				options.headers = {};
+			}
+			// Update the options with the new access token and retry the request
+			options.headers.Authorization = `Bearer ${accessToken}`;
+			const retryResponseData = await this.helpers.request(options);
+			return retryResponseData;
+		}
 
-		return formattedData;
+		return responseData;
 	} catch (error) {
 		throw new NodeApiError(this.getNode(), error as JsonObject);
 	}
@@ -60,7 +68,13 @@ export async function appflowyApiRequest(
 /**
  * Authenticate and store tokens.
  */
-export async function authenticate(this: IExecuteFunctions | ILoadOptionsFunctions) { // TODO: reauthenticate automatically on error 401 - move function over from main script.
+export async function getAccessToken(this: IExecuteFunctions | ILoadOptionsFunctions, reauthenticate = false): Promise<string> { // TODO: reauthenticate automatically on error 401 - move function over from main script.
+	// Check for existing access token
+	const nodeData = this.getWorkflowStaticData('node');
+	if (typeof nodeData.accessToken === 'string' && !reauthenticate) {
+		return nodeData.accessToken;
+	}
+
 	const credentials = await this.getCredentials('appflowyApi');
 
 	const response = await this.helpers.request({
@@ -77,7 +91,6 @@ export async function authenticate(this: IExecuteFunctions | ILoadOptionsFunctio
 	});
 
 	// Store the tokens in workflow static data
-	const nodeData = this.getWorkflowStaticData('node');
 	nodeData.accessToken = response.access_token;
 	nodeData.refreshToken = response.refresh_token;
 
