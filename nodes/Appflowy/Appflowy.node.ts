@@ -4,8 +4,11 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	IDataObject,
+	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
+import { appflowyApiRequest, toOptions, authenticate } from './GenericFunctions';
+import type { LoadedResource } from './types';
 
 export class Appflowy implements INodeType {
 	description: INodeTypeDescription = {
@@ -38,9 +41,20 @@ export class Appflowy implements INodeType {
 						name: 'Workspace',
 						value: 'workspace',
 					},
+					{
+						name: 'Database',
+						value: 'database',
+					},
+					{
+						name: 'Database Row',
+						value: 'databaseRow',
+					},
 				],
 				default: 'workspace',
 			},
+
+			// Workspace
+
 			{
 				displayName: 'Operation',
 				name: 'operation',
@@ -61,7 +75,91 @@ export class Appflowy implements INodeType {
 				],
 				default: 'getAll',
 			},
+
+			// Database
+
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['database'],
+					},
+				},
+				options: [
+					{
+						name: 'Get Many',
+						value: 'getAll',
+						description: 'Get many databases',
+						action: 'Get many databases',
+					},
+					{
+						name: 'Get Fields',
+						value: 'getFields',
+						description: 'Get database fields',
+						action: 'Get database fields',
+					},
+				],
+				default: 'getAll',
+			},
+			{
+				displayName: 'Workspace Name or ID',
+				name: 'workspaceId',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['database'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The name or ID of the workspace to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+				typeOptions: {
+					loadOptionsMethod: 'getWorkspaceIds',
+				},
+			},
+
+			// Database Row
+
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+					},
+				},
+				options: [
+					{
+						name: 'Get Many',
+						value: 'getAll',
+						description: 'Get many database rows',
+						action: 'Get many database rows',
+					},
+				],
+				default: 'getAll',
+			},
 		],
+	};
+
+	methods= {
+		loadOptions: {
+			async getWorkspaceIds(this: ILoadOptionsFunctions) {
+				this.logger.info('Test here');
+				const endpoint = '/api/workspace';
+				const workspaces = (await appflowyApiRequest.call(
+					this,
+					'GET',
+					endpoint,
+				)) as LoadedResource[];
+				this.logger.info('Workspaces response:', workspaces);
+				return toOptions(workspaces);
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -75,32 +173,9 @@ export class Appflowy implements INodeType {
 		const nodeData = this.getWorkflowStaticData('node');
 		let accessToken = nodeData.accessToken as string | undefined;
 
-		// Function to perform login and store tokens
-		const authenticate = async () => {
-			const response = await this.helpers.request({
-				method: 'POST',
-				url: `${credentials.host}/gotrue/token?grant_type=password`,
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: {
-					email: credentials.username,
-					password: credentials.password,
-				},
-				json: true,
-			});
-
-			// Store the tokens
-			nodeData.accessToken = response.access_token;
-			nodeData.refreshToken = response.refresh_token;
-			accessToken = response.access_token;
-
-			return response.access_token;
-		};
-
 		// If we don't have an access token, authenticate
 		if (!accessToken) {
-			accessToken = await authenticate();
+			accessToken = await authenticate.call(this);
 		}
 
 		// For each item
@@ -117,15 +192,30 @@ export class Appflowy implements INodeType {
 							},
 							json: true,
 						});
-
+						this.logger.info('Response:', { response });
 						returnData.push(...(Array.isArray(response) ? response : [response]));
+					}
+				}
+				if (resource === 'database') {
+					if (operation === 'getAll') {
+						// Get databases request
+						const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
+						const response = await this.helpers.request({
+							method: 'GET',
+							url: `${credentials.host}/api/workspace/${workspaceId}/database`,
+							headers: {
+								'Authorization': `Bearer ${accessToken}`,
+							},
+							json: true,
+						});
+						returnData.push(...response.data);
 					}
 				}
 			} catch (error) {
 				// If we get a 401, try to authenticate and retry the request
 				if (error.response?.status === 401) {
 					try {
-						accessToken = await authenticate();
+						accessToken = await authenticate.call(this);
 						// Retry the request with new token
 						if (resource === 'workspace' && operation === 'getAll') {
 							const response = await this.helpers.request({
