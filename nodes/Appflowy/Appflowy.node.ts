@@ -7,8 +7,8 @@ import type {
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
-import { appflowyApiRequest, toOptions, getAccessToken } from './GenericFunctions';
-import type { LoadedResource, Workspace } from './types';
+import { appflowyApiRequest, toOptions } from './GenericFunctions';
+import type { Database, LoadedResource, Workspace } from './types';
 
 export class Appflowy implements INodeType {
 	description: INodeTypeDescription = {
@@ -120,6 +120,23 @@ export class Appflowy implements INodeType {
 					loadOptionsMethod: 'getWorkspaceIds',
 				},
 			},
+			{
+				displayName: 'Database Name or ID',
+				name: 'databaseId',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['database'],
+						operation: ['getFields'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The name or ID of the database to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+				typeOptions: {
+					loadOptionsMethod: 'getDatabaseIds',
+				},
+			},
 
 			// Database Row
 
@@ -143,6 +160,66 @@ export class Appflowy implements INodeType {
 				],
 				default: 'getAll',
 			},
+			{
+				displayName: 'Workspace Name or ID',
+				name: 'workspaceId',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The name or ID of the workspace to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+				typeOptions: {
+					loadOptionsMethod: 'getWorkspaceIds',
+				},
+			},
+			{
+				displayName: 'Database Name or ID',
+				name: 'databaseId',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['getAll'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The name or ID of the database to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+				typeOptions: {
+					loadOptionsDependsOn: ['workspaceId'],
+					loadOptionsMethod: 'getDatabaseIds',
+				},
+			},
+			{
+				displayName: 'Include Document Data',
+				name: 'includeDocumentData',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['getAll'],
+					},
+				},
+				default: false,
+				description: 'Whether to include the document data of each row',
+			},
+			{
+				displayName: 'Simplify',
+				name: 'simplify',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['getAll'],
+					},
+				},
+				default: true,
+				description: 'Whether to return a simplified version of the response instead of the raw data',
+			},
 		],
 	};
 
@@ -159,6 +236,18 @@ export class Appflowy implements INodeType {
 
 				return toOptions(workspaces);
 			},
+			async getDatabaseIds(this: ILoadOptionsFunctions) {
+				const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
+				const endpoint = `/api/workspace/${workspaceId}/database`;
+				const response = await appflowyApiRequest.call(this, 'GET', endpoint);
+
+				const databases = response.data.map((database: Database) => ({
+					id: database.id,
+					name: database.views[0].name,
+				})) as LoadedResource[];
+
+				return toOptions(databases);
+			},
 		},
 	};
 
@@ -167,15 +256,6 @@ export class Appflowy implements INodeType {
 		const returnData: IDataObject[] = [];
 		const resource = this.getNodeParameter('resource', 0) as string;
 		const operation = this.getNodeParameter('operation', 0) as string;
-
-		// Get the stored tokens
-		const nodeData = this.getWorkflowStaticData('node');
-		let accessToken = nodeData.accessToken as string | undefined;
-
-		// If we don't have an access token, authenticate
-		if (!accessToken) {
-			accessToken = await getAccessToken.call(this);
-		}
 
 		// For each item
 		for (let i = 0; i < items.length; i++) {
@@ -194,6 +274,46 @@ export class Appflowy implements INodeType {
 						const endpoint = `/api/workspace/${workspaceId}/database`;
 						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
 						returnData.push(...response.data);
+					}
+					if (operation === 'getFields') {
+						const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
+						const databaseId = this.getNodeParameter('databaseId', 0) as string;
+						const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/fields`;
+						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
+						returnData.push(...response.data);
+					}
+				}
+				if (resource === 'databaseRow') {
+					if (operation === 'getAll') {
+						const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
+						const databaseId = this.getNodeParameter('databaseId', 0) as string;
+						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
+						const simplify = this.getNodeParameter('simplify', 0) as boolean;
+						const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row`;
+						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
+						const rows = response.data;
+						const ids = rows.map((row: { id: string }) => row.id).join(',');
+						const args = includeDocumentData ? '&with_doc=true' : '';
+						const detailEndpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row/detail?ids=${ids}${args}`;
+						const detailResponse = await appflowyApiRequest.call(this, 'GET', detailEndpoint);
+						if (simplify) {
+							const simplifiedData = detailResponse.data.map((item: { id: string; cells: Record<string, unknown>; doc?: unknown }) => {
+								const result: { id: string; doc?: unknown } = { id: item.id };
+								Object.assign(result, item.cells);
+								if (includeDocumentData) {
+									result.doc = null;
+									if (item.doc) result.doc = item.doc;
+								}
+								return result;
+							});
+							returnData.push(...simplifiedData);
+						} else {
+							if (!includeDocumentData) {
+								returnData.push(...detailResponse.data.map(({ doc, ...rest }: { doc?: unknown; [key: string]: unknown }) => rest));
+							} else {
+								returnData.push(...detailResponse.data);
+							}
+						}
 					}
 				}
 			} catch (error) {

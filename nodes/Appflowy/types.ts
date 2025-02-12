@@ -16,3 +16,16 @@ export type Workspace = {
 	member_count: number | null;
 	role: string | null;
 };
+
+export type Database = {
+	id: string;
+	views: {
+		view_id: string;
+		name: string;
+		icon: {
+			ty: number;
+			value: string;
+		};
+		layout: number;
+	}[];
+};
