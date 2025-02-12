@@ -99,3 +99,36 @@ export async function getAccessToken(this: IExecuteFunctions | ILoadOptionsFunct
 
 export const toOptions = (items: LoadedResource[]) =>
 	items.map(({ name, id }) => ({ name, value: id }));
+
+/**
+ * Fetch and process row details from AppFlowy API.
+ */
+export async function getRowDetails(
+	this: IExecuteFunctions,
+	workspaceId: string,
+	databaseId: string,
+	ids: string,
+	includeDocumentData: boolean,
+	simplify: boolean
+): Promise<IDataObject[]> {
+	const args = includeDocumentData ? '&with_doc=true' : '';
+	const detailEndpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row/detail?ids=${ids}${args}`;
+	const detailResponse = await appflowyApiRequest.call(this, 'GET', detailEndpoint);
+
+	if (simplify) {
+		return detailResponse.data.map((item: { id: string; cells: Record<string, unknown>; doc?: unknown }) => {
+			const result: { id: string; doc?: unknown } = { id: item.id };
+			Object.assign(result, item.cells);
+			if (includeDocumentData) {
+				result.doc = null;
+				if (item.doc) result.doc = item.doc;
+			}
+			return result;
+		});
+	}
+
+	if (!includeDocumentData) {
+		return detailResponse.data.map(({ doc, ...rest }: { doc?: unknown; [key: string]: unknown }) => rest);
+	}
+	return detailResponse.data;
+}

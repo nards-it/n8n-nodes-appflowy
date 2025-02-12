@@ -7,7 +7,7 @@ import type {
 	ILoadOptionsFunctions,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
-import { appflowyApiRequest, toOptions } from './GenericFunctions';
+import { appflowyApiRequest, toOptions, getRowDetails } from './GenericFunctions';
 import type { Database, LoadedResource, Workspace } from './types';
 
 export class Appflowy implements INodeType {
@@ -152,6 +152,12 @@ export class Appflowy implements INodeType {
 				},
 				options: [
 					{
+						name: 'Get',
+						value: 'get',
+						description: 'Get a database row',
+						action: 'Get a database row',
+					},
+					{
 						name: 'Get Many',
 						value: 'getAll',
 						description: 'Get many database rows',
@@ -183,7 +189,6 @@ export class Appflowy implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['databaseRow'],
-						operation: ['getAll'],
 					},
 				},
 				default: '',
@@ -195,13 +200,27 @@ export class Appflowy implements INodeType {
 				},
 			},
 			{
+				displayName: 'Database Row ID',
+				name: 'databaseRowId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['get'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The ID of the database row to get',
+			},
+			{
 				displayName: 'Include Document Data',
 				name: 'includeDocumentData',
 				type: 'boolean',
 				displayOptions: {
 					show: {
 						resource: ['databaseRow'],
-						operation: ['getAll'],
+						operation: ['get', 'getAll'],
 					},
 				},
 				default: false,
@@ -244,7 +263,7 @@ export class Appflowy implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['databaseRow'],
-						operation: ['getAll'],
+						operation: ['get', 'getAll'],
 					},
 				},
 				default: true,
@@ -351,9 +370,9 @@ export class Appflowy implements INodeType {
 					}
 				}
 				if (resource === 'databaseRow') {
-					if (operation === 'getAll') {
 						const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
 						const databaseId = this.getNodeParameter('databaseId', 0) as string;
+					if (operation === 'getAll') {
 						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
 						const simplify = this.getNodeParameter('simplify', 0) as boolean;
 						const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
@@ -382,27 +401,15 @@ export class Appflowy implements INodeType {
 						}
 						const ids = rows.map((row: { id: string }) => row.id).join(',');
 						// Get details for each row
-						const args = includeDocumentData ? '&with_doc=true' : '';
-						const detailEndpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row/detail?ids=${ids}${args}`;
-						const detailResponse = await appflowyApiRequest.call(this, 'GET', detailEndpoint);
-						if (simplify) {
-							const simplifiedData = detailResponse.data.map((item: { id: string; cells: Record<string, unknown>; doc?: unknown }) => {
-								const result: { id: string; doc?: unknown } = { id: item.id };
-								Object.assign(result, item.cells);
-								if (includeDocumentData) {
-									result.doc = null;
-									if (item.doc) result.doc = item.doc;
-								}
-								return result;
-							});
-							returnData.push(...simplifiedData);
-						} else {
-							if (!includeDocumentData) {
-								returnData.push(...detailResponse.data.map(({ doc, ...rest }: { doc?: unknown; [key: string]: unknown }) => rest));
-							} else {
-								returnData.push(...detailResponse.data);
-							}
-						}
+						const detailResponse = await getRowDetails.call(this, workspaceId, databaseId, ids, includeDocumentData, simplify);
+						returnData.push(...detailResponse);
+					}
+					if (operation === 'get') {
+						const ids = this.getNodeParameter('databaseRowId', 0) as string;
+						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
+						const simplify = this.getNodeParameter('simplify', 0) as boolean;
+						const detailResponse = await getRowDetails.call(this, workspaceId, databaseId, ids, includeDocumentData, simplify);
+						returnData.push(...detailResponse);
 					}
 				}
 			} catch (error) {
