@@ -250,6 +250,43 @@ export class Appflowy implements INodeType {
 				default: true,
 				description: 'Whether to return a simplified version of the response instead of the raw data',
 			},
+			{
+				displayName: 'Filter',
+				name: 'filterType',
+				type: 'options',
+				options: [
+					{
+						name: 'None',
+						value: 'none',
+					},
+					{
+						name: 'Updated After',
+						value: 'updatedAfter',
+					},
+				],
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['getAll'],
+					},
+				},
+				default: 'none',
+			},
+			{
+				displayName: 'Updated Time',
+				name: 'createdTimeValue',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['getAll'],
+						filterType: ['updatedAfter'],
+					},
+				},
+				type: 'dateTime',
+				default: '',
+				required: true,
+				description: 'An ISO 8601 format date, with optional time',
+			},
 		],
 	};
 
@@ -320,10 +357,20 @@ export class Appflowy implements INodeType {
 						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
 						const simplify = this.getNodeParameter('simplify', 0) as boolean;
 						const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
+						const filterType = this.getNodeParameter('filterType', 0) as string;
 						// Get row ids
-						const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row`;
-						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
-						let rows = response.data;
+						let rows = [];
+						// Use different endpoint, if filter is applied
+						if (filterType === 'updatedAfter') {
+							const createdTimeValue = this.getNodeParameter('createdTimeValue', 0) as string;
+							const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row/updated?after=${createdTimeValue}Z`;
+							const response = await appflowyApiRequest.call(this, 'GET', endpoint);
+							rows = response.data.map((row: { row_id: string }) => ({ id: row.row_id }));
+						} else {
+							const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row`;
+							const response = await appflowyApiRequest.call(this, 'GET', endpoint);
+							rows = response.data;
+						}
 						// Early return if no rows are found
 						if (rows.length === 0) {
 							return [this.helpers.returnJsonArray([])];
