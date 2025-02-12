@@ -208,6 +208,36 @@ export class Appflowy implements INodeType {
 				description: 'Whether to include the document data of each row',
 			},
 			{
+				displayName: 'Return All',
+				name: 'returnAll',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['getAll'],
+					},
+				},
+				default: false,
+				description: 'Whether to return all results or only up to a given limit',
+			},
+			{
+				displayName: 'Limit',
+				name: 'limit',
+				type: 'number',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['getAll'],
+						returnAll: [false],
+					},
+				},
+				typeOptions: {
+					minValue: 1,
+				},
+				default: 50,
+				description: 'Max number of results to return',
+			},
+			{
 				displayName: 'Simplify',
 				name: 'simplify',
 				type: 'boolean',
@@ -289,10 +319,22 @@ export class Appflowy implements INodeType {
 						const databaseId = this.getNodeParameter('databaseId', 0) as string;
 						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
 						const simplify = this.getNodeParameter('simplify', 0) as boolean;
+						const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
+						// Get row ids
 						const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row`;
 						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
-						const rows = response.data;
+						let rows = response.data;
+						// Early return if no rows are found
+						if (rows.length === 0) {
+							return [this.helpers.returnJsonArray([])];
+						}
+						// Apply limit if needed
+						if (!returnAll) {
+							const limit = this.getNodeParameter('limit', 0) as number;
+							rows = rows.slice(0, limit);
+						}
 						const ids = rows.map((row: { id: string }) => row.id).join(',');
+						// Get details for each row
 						const args = includeDocumentData ? '&with_doc=true' : '';
 						const detailEndpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row/detail?ids=${ids}${args}`;
 						const detailResponse = await appflowyApiRequest.call(this, 'GET', detailEndpoint);
