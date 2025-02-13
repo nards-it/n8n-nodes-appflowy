@@ -68,7 +68,7 @@ export async function appflowyApiRequest(
 /**
  * Authenticate and store tokens.
  */
-export async function getAccessToken(this: IExecuteFunctions | ILoadOptionsFunctions, reauthenticate = false): Promise<string> { // TODO: reauthenticate automatically on error 401 - move function over from main script.
+export async function getAccessToken(this: IExecuteFunctions | ILoadOptionsFunctions, reauthenticate = false): Promise<string> {
 	// Check for existing access token
 	const nodeData = this.getWorkflowStaticData('node');
 	if (typeof nodeData.accessToken === 'string' && !reauthenticate) {
