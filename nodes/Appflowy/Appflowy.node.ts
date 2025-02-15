@@ -673,29 +673,29 @@ export class Appflowy implements INodeType {
 				}
 				if (resource === 'database') {
 					if (operation === 'getAll') {
-						const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
+						const workspaceId = this.getNodeParameter('workspaceId', i) as string;
 
 						const endpoint = `/api/workspace/${workspaceId}/database`;
 						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
 						returnData.push(...response.data);
 					}
 					if (operation === 'getFields') {
-						const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
-						const databaseId = this.getNodeParameter('databaseId', 0) as string;
+						const workspaceId = this.getNodeParameter('workspaceId', i) as string;
+						const databaseId = this.getNodeParameter('databaseId', i) as string;
 						const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/fields`;
 						const response = await appflowyApiRequest.call(this, 'GET', endpoint);
 						returnData.push(...response.data);
 					}
 				}
 				if (resource === 'databaseRow') {
-					const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
-					const databaseId = this.getNodeParameter('databaseId', 0) as string;
+					const workspaceId = this.getNodeParameter('workspaceId', i) as string;
+					const databaseId = this.getNodeParameter('databaseId', i) as string;
 					if (operation === 'create') {
-						const dataToSend = this.getNodeParameter('dataToSend', 0) as string;
-						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
+						const dataToSend = this.getNodeParameter('dataToSend', i) as string;
+						const includeDocumentData = this.getNodeParameter('includeDocumentData', i) as boolean;
 						let body: IDataObject = {};
 						if (dataToSend === 'mapManually') {
-							const fieldValues = this.getNodeParameter('propertiesToSend', 0, []) as {
+							const fieldValues = this.getNodeParameter('propertiesToSend', i, []) as {
 								fieldValues: PropertySelectValue;
 							};
 							if (!fieldValues.fieldValues) {
@@ -762,10 +762,10 @@ export class Appflowy implements INodeType {
 							};
 						}
 						if (dataToSend === 'json') {
-							body = JSON.parse(this.getNodeParameter('jsonData', 0) as string);
+							body = JSON.parse(this.getNodeParameter('jsonData', i) as string);
 						}
 						if (includeDocumentData) {
-							const documentData = this.getNodeParameter('documentData', 0) as string;
+							const documentData = this.getNodeParameter('documentData', i) as string;
 							body.document = documentData;
 						}
 						const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row`;
@@ -773,22 +773,22 @@ export class Appflowy implements INodeType {
 						returnData.push({ json: response });
 					}
 					if (operation === 'get') {
-						const ids = this.getNodeParameter('databaseRowId', 0) as string;
-						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
-						const simplify = this.getNodeParameter('simplify', 0) as boolean;
+						const ids = this.getNodeParameter('databaseRowId', i) as string;
+						const includeDocumentData = this.getNodeParameter('includeDocumentData', i) as boolean;
+						const simplify = this.getNodeParameter('simplify', i) as boolean;
 						const detailResponse = await getRowDetails.call(this, workspaceId, databaseId, ids, includeDocumentData, simplify);
 						returnData.push(...detailResponse);
 					}
 					if (operation === 'getAll') {
-						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
-						const simplify = this.getNodeParameter('simplify', 0) as boolean;
-						const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
-						const filterType = this.getNodeParameter('filterType', 0) as string;
+						const includeDocumentData = this.getNodeParameter('includeDocumentData', i) as boolean;
+						const simplify = this.getNodeParameter('simplify', i) as boolean;
+						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+						const filterType = this.getNodeParameter('filterType', i) as string;
 						// Get row ids
 						let rows = [];
 						// Use different endpoint, if filter is applied
 						if (filterType === 'updatedAfter') {
-							const createdTimeValue = this.getNodeParameter('createdTimeValue', 0) as string;
+							const createdTimeValue = this.getNodeParameter('createdTimeValue', i) as string;
 							const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row/updated?after=${createdTimeValue}Z`;
 							const response = await appflowyApiRequest.call(this, 'GET', endpoint);
 							rows = response.data.map((row: { row_id: string }) => ({ id: row.row_id }));
@@ -803,7 +803,7 @@ export class Appflowy implements INodeType {
 						}
 						// Apply limit if needed
 						if (!returnAll) {
-							const limit = this.getNodeParameter('limit', 0) as number;
+							const limit = this.getNodeParameter('limit', i) as number;
 							rows = rows.slice(0, limit);
 						}
 						const ids = rows.map((row: { id: string }) => row.id).join(',');
