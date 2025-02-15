@@ -301,6 +301,7 @@ export class Appflowy implements INodeType {
 							// Supported Field Types: RichText, Numbers, SingleSelect, MultiSelect, DateTime, Media, URL, Checkbox, Checklist
 							// LastEditedTime, CreatedTime, Summary, Translate are read only
 							// Relation currently not supported by rows endpoint
+							// Media and Checklist not implemented yet
 							{
 								displayName: 'Type',
 								name: 'type',
@@ -631,7 +632,8 @@ export class Appflowy implements INodeType {
 					.filter((field: { field_type: string }) =>
 						// LastEditedTime, CreatedTime, S are read only
         		// Relation currently not supported by rows endpoint
-						!['LastEditedTime', 'CreatedTime', 'Summary', 'Translate', 'Relation'].includes(field.field_type)
+						// Media and Checklist not implemented yet
+						!['LastEditedTime', 'CreatedTime', 'Summary', 'Translate', 'Relation', 'Media', 'Checklist'].includes(field.field_type)
 					)
 					.map((field: { id: string; name: string; field_type: string }) => {
 						return {
