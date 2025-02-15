@@ -251,7 +251,7 @@ export class Appflowy implements INodeType {
 						values: [
 							{
 								displayName: 'Property Name or ID',
-								name: 'propertyId',
+								name: 'key', // must be named "key" in order to map custom field types
 								type: 'options',
 								description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
 								typeOptions: {
@@ -260,11 +260,103 @@ export class Appflowy implements INodeType {
 								},
 								default: '',
 							},
+							// Supported Field Types: RichText, Numbers, SingleSelect, MultiSelect, DateTime, Media, URL, Checkbox, Checklist
+							// LastEditedTime, CreatedTime, Summary, Translate are read only
+							// Relation currently not supported by rows endpoint
 							{
-								displayName: 'Property Value',
-								name: 'propertyValue',
+								displayName: 'Type',
+								name: 'type',
+								type: 'hidden',
+								default: '={{$parameter["&key"].split("|")[1]}}',
+							},
+							{
+								displayName: 'Text',
+								name: 'textValue',
 								type: 'string',
+								displayOptions: {
+									show: {
+										type: ['RichText'],
+									},
+								},
 								default: '',
+							},
+							{
+								displayName: 'Number',
+								name: 'numberValue',
+								displayOptions: {
+									show: {
+										type: ['Number'],
+									},
+								},
+								type: 'number',
+								default: 0,
+								description: 'Number value',
+							},
+							{
+								displayName: 'Option Name or ID',
+								name: 'selectValue',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getPropertySelectValues',
+								},
+								displayOptions: {
+									show: {
+										type: ['SingleSelect'],
+									},
+								},
+								default: '',
+								description: 'Name of the option you want to set. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+							},
+							{
+								displayName: 'Option Names or IDs',
+								name: 'multiSelectValue',
+								type: 'multiOptions',
+								typeOptions: {
+									loadOptionsMethod: 'getPropertySelectValues',
+								},
+								displayOptions: {
+									show: {
+										type: ['MultiSelect'],
+									},
+								},
+								default: [],
+								description: 'Name of the options you want to set. Multiples can be defined separated by comma. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+							},
+							{
+								displayName: 'Date and Time',
+								name: 'date',
+								displayOptions: {
+									show: {
+										type: ['DateTime'],
+									},
+								},
+								type: 'dateTime',
+								default: '',
+								description: 'An ISO 8601 format date, with optional time',
+							},
+							{
+								displayName: 'URL',
+								name: 'urlValue',
+								type: 'string',
+								displayOptions: {
+									show: {
+										type: ['URL'],
+									},
+								},
+								default: '',
+							},
+							{
+								displayName: 'Checked',
+								name: 'checkboxValue',
+								displayOptions: {
+									show: {
+										type: ['Checkbox'],
+									},
+								},
+								type: 'boolean',
+								default: false,
+								description:
+									'Whether or not the checkbox is checked. <code>true</code> represents checked. <code>false</code> represents unchecked.',
 							},
 						],
 					},
@@ -442,7 +534,36 @@ export class Appflowy implements INodeType {
 				const databaseId = this.getNodeParameter('databaseId', 0) as string;
 				const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/fields`;
 				const response = await appflowyApiRequest.call(this, 'GET', endpoint);
-				return toOptions(response.data);
+
+				// Map the response to include id + "|" + field_type for the value
+				const fieldsForOptions = response.data
+					.filter((field: { field_type: string }) =>
+						// LastEditedTime, CreatedTime, S are read only
+        		// Relation currently not supported by rows endpoint
+						!['LastEditedTime', 'CreatedTime', 'Summary', 'Translate', 'Relation'].includes(field.field_type)
+					)
+					.map((field: { id: string; name: string; field_type: string }) => {
+						return {
+							name: field.name,
+							id: `${field.id}|${field.field_type}`,
+						};
+					});
+
+				return toOptions(fieldsForOptions);
+			},
+			async getPropertySelectValues(this: ILoadOptionsFunctions) {
+				const [name] = (this.getCurrentNodeParameter('&key') as string).split('|');
+				const workspaceId = this.getNodeParameter('workspaceId', 0) as string;
+				const databaseId = this.getNodeParameter('databaseId', 0) as string;
+				const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/fields`;
+				const response = await appflowyApiRequest.call(this, 'GET', endpoint);
+				const fieldsForOptions = response.data
+					.filter((field: { id: string; name: string }) => field.id === name)
+					.flatMap((field: { type_option: { content: { options: { name: string; id: string }[] } } }) =>
+						field.type_option.content.options
+					)
+					.map((option: { id: string; name: string }) => ({ id: option.name, name: option.name }));
+				return toOptions(fieldsForOptions);
 			},
 		},
 	};
@@ -487,17 +608,60 @@ export class Appflowy implements INodeType {
 						const includeDocumentData = this.getNodeParameter('includeDocumentData', 0) as boolean;
 						let body: IDataObject = {};
 						if (dataToSend === 'mapManually') {
-							const propertiesToSend = this.getNodeParameter('propertiesToSend', 0) as {
-								fieldValues: Array<{ propertyId: string; propertyValue: string }>;
+							const fieldValues = this.getNodeParameter('propertiesToSend', 0, []) as {
+								fieldValues: Array<{
+									key: string;
+									type: string;
+									textValue: string;
+									numberValue: number;
+									selectValue: string;
+									multiSelectValue: string;
+									dateValue: string;
+									urlValue: string;
+									checkboxValue: boolean;
+								}>;
 							};
-							if (Object.keys(propertiesToSend).length === 0) {
-								throw new NodeOperationError(this.getNode(), "Invalid request - Please define properties first");
+							if (!fieldValues.fieldValues) {
+								throw new NodeOperationError(this.getNode(), 'No field values provided');
 							}
+							const cells = fieldValues.fieldValues.reduce((acc, field) => {
+								const id = field.key.split('|')[0];
+								let value: string | number | boolean | null = null;
+
+								switch (field.type) {
+									case 'RichText':
+										value = field.textValue;
+										break;
+									case 'Number':
+										value = field.numberValue;
+										break;
+									case 'SingleSelect':
+										value = field.selectValue;
+										break;
+									case 'MultiSelect':
+										value = field.multiSelectValue;
+										break;
+									case 'DateTime':
+										value = field.dateValue;
+										break;
+									case 'URL':
+										value = field.urlValue;
+										break;
+									case 'Checkbox':
+										value = field.checkboxValue;
+										break;
+									default:
+										value = null; // Handle other types if necessary
+								}
+
+								if (value !== null) {
+									acc[id] = value;
+								}
+								return acc;
+							}, {} as Record<string, string | number | boolean>);
+
 							body = {
-								cells: propertiesToSend.fieldValues.reduce((acc, property) => {
-									acc[property.propertyId] = property.propertyValue;
-									return acc;
-								}, {} as IDataObject),
+								cells: cells,
 							};
 						}
 						if (dataToSend === 'json') {
