@@ -52,5 +52,10 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
+  },
+  "dependencies": {
+    "@types/luxon": "^3.4.2",
+    "luxon": "^3.5.0",
+    "moment-timezone": "^0.5.47"
   }
 }

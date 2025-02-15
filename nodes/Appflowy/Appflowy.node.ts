@@ -5,10 +5,13 @@ import type {
 	INodeTypeDescription,
 	IDataObject,
 	ILoadOptionsFunctions,
+	INodePropertyOptions,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import { appflowyApiRequest, toOptions, getRowDetails } from './GenericFunctions';
-import type { Database, LoadedResource, Workspace } from './types';
+import type { Database, LoadedResource, Workspace, PropertySelectValue, DateTimeCell } from './types';
+import moment from 'moment-timezone';
+import { DateTime } from 'luxon';
 
 export class Appflowy implements INodeType {
 	description: INodeTypeDescription = {
@@ -323,16 +326,83 @@ export class Appflowy implements INodeType {
 								description: 'Name of the options you want to set. Multiples can be defined separated by comma. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
 							},
 							{
-								displayName: 'Date and Time',
+								displayName: 'Range',
+								name: 'range',
+								displayOptions: {
+									show: {
+										type: ['DateTime'],
+									},
+								},
+								type: 'boolean',
+								default: false,
+								description: 'Whether or not you want to define a date range',
+							},
+							{
+								displayName: 'Include Time',
+								name: 'includeTime',
+								displayOptions: {
+									show: {
+										type: ['DateTime'],
+									},
+								},
+								type: 'boolean',
+								default: true,
+								description: 'Whether or not to include the time in the date',
+							},
+							{
+								displayName: 'Date',
 								name: 'date',
 								displayOptions: {
 									show: {
+										range: [false],
 										type: ['DateTime'],
 									},
 								},
 								type: 'dateTime',
 								default: '',
 								description: 'An ISO 8601 format date, with optional time',
+							},
+							{
+								displayName: 'Date Start',
+								name: 'dateStart',
+								displayOptions: {
+									show: {
+										range: [true],
+										type: ['DateTime'],
+									},
+								},
+								type: 'dateTime',
+								default: '',
+								description: 'An ISO 8601 format date, with optional time',
+							},
+							{
+								displayName: 'Date End',
+								name: 'dateEnd',
+								displayOptions: {
+									show: {
+										range: [true],
+										type: ['DateTime'],
+									},
+								},
+								type: 'dateTime',
+								default: '',
+								description:
+									'An ISO 8601 formatted date, with optional time. Represents the end of a date range.',
+							},
+							{
+								displayName: 'Timezone Name or ID',
+								name: 'timezone',
+								type: 'options',
+								displayOptions: {
+									show: {
+										type: ['DateTime'],
+									},
+								},
+								typeOptions: {
+									loadOptionsMethod: 'getTimezones',
+								},
+								default: '',
+								description: 'Time zone to use. By default n8n timezone is used. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
 							},
 							{
 								displayName: 'URL',
@@ -565,6 +635,23 @@ export class Appflowy implements INodeType {
 					.map((option: { id: string; name: string }) => ({ id: option.name, name: option.name }));
 				return toOptions(fieldsForOptions);
 			},
+			async getTimezones(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				for (const timezone of moment.tz.names()) {
+					const timezoneName = timezone;
+					const timezoneId = timezone;
+					returnData.push({
+						name: timezoneName,
+						value: timezoneId,
+					});
+				}
+				returnData.unshift({
+					name: 'Default',
+					value: '',
+					description: 'Timezone set in n8n',
+				});
+				return returnData;
+			}
 		},
 	};
 
@@ -609,24 +696,14 @@ export class Appflowy implements INodeType {
 						let body: IDataObject = {};
 						if (dataToSend === 'mapManually') {
 							const fieldValues = this.getNodeParameter('propertiesToSend', 0, []) as {
-								fieldValues: Array<{
-									key: string;
-									type: string;
-									textValue: string;
-									numberValue: number;
-									selectValue: string;
-									multiSelectValue: string;
-									dateValue: string;
-									urlValue: string;
-									checkboxValue: boolean;
-								}>;
+								fieldValues: PropertySelectValue;
 							};
 							if (!fieldValues.fieldValues) {
 								throw new NodeOperationError(this.getNode(), 'No field values provided');
 							}
 							const cells = fieldValues.fieldValues.reduce((acc, field) => {
 								const id = field.key.split('|')[0];
-								let value: string | number | boolean | null = null;
+								let value: string | number | boolean | DateTimeCell | null = null;
 
 								switch (field.type) {
 									case 'RichText':
@@ -641,9 +718,29 @@ export class Appflowy implements INodeType {
 									case 'MultiSelect':
 										value = field.multiSelectValue;
 										break;
-									case 'DateTime':
-										value = field.dateValue;
+									case 'DateTime': {
+										let timezone = this.getTimezone();
+										if (field.timezone !== '') {
+											timezone = field.timezone;
+										}
+										if (field.range) {
+											if (!field.dateStart || !field.dateEnd) throw new NodeOperationError(this.getNode(), 'Missing date values');
+											value = {
+												timestamp: DateTime.fromISO(field.dateStart, { zone: timezone }).toUTC().toSeconds().toString(),
+												end_timestamp: DateTime.fromISO(field.dateEnd, { zone: timezone }).toUTC().toSeconds().toString(),
+												is_range: true,
+											};
+										} else {
+											if (!field.date) throw new NodeOperationError(this.getNode(), 'Missing date value');
+											value = {
+												timestamp: DateTime.fromISO(field.date, { zone: timezone }).toUTC().toSeconds().toString(),
+											};
+										}
+										if (field.includeTime) {
+											value.include_time = true;
+										}
 										break;
+									}
 									case 'URL':
 										value = field.urlValue;
 										break;
@@ -658,7 +755,7 @@ export class Appflowy implements INodeType {
 									acc[id] = value;
 								}
 								return acc;
-							}, {} as Record<string, string | number | boolean>);
+							}, {} as Record<string, string | number | boolean | DateTimeCell>);
 
 							body = {
 								cells: cells,

@@ -29,3 +29,28 @@ export type Database = {
 		layout: number;
 	}[];
 };
+
+export type DateTimeCell = {
+	timestamp?: string;
+	end_timestamp?: string;
+	is_range?: boolean;
+	include_time?: boolean;
+};
+
+export type PropertySelectValue = {
+	key: string;
+	type: string;
+	textValue: string;
+	numberValue: number;
+	selectValue: string;
+	multiSelectValue: string;
+	range: boolean;
+	includeTime: boolean;
+	date: string;
+	dateStart: string;
+	dateEnd: string;
+	timezone: string;
+	urlValue: string;
+	checkboxValue: boolean;
+}[];
+
