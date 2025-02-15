@@ -6,6 +6,7 @@ import type {
 	IDataObject,
 	ILoadOptionsFunctions,
 	INodePropertyOptions,
+	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import { appflowyApiRequest, toOptions, getRowDetails } from './GenericFunctions';
@@ -161,6 +162,12 @@ export class Appflowy implements INodeType {
 						action: 'Create a database row',
 					},
 					{
+						name: 'Create or Update',
+						value: 'upsert',
+						description: 'Create a new record, or update the current one if it already exists (upsert)',
+						action: 'Create or update a database row',
+					},
+					{
 						name: 'Get',
 						value: 'get',
 						description: 'Get a database row',
@@ -209,6 +216,34 @@ export class Appflowy implements INodeType {
 				},
 			},
 			{
+				displayName: 'Database Row ID',
+				name: 'databaseRowId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['get'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The ID of the database row to get',
+			},
+			{
+				displayName: 'Database Row Pre-Hash',
+				name: 'databaseRowPreHash',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['databaseRow'],
+						operation: ['upsert'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'A string value that that will be used to calculate the hash of the row, which will become the row\'s unique identifier',
+			},
+			{
 				displayName: 'Data to Send',
 				name: 'dataToSend',
 				type: 'options',
@@ -225,7 +260,7 @@ export class Appflowy implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['databaseRow'],
-						operation: ['create'],
+						operation: ['create', 'upsert'],
 					},
 				},
 				default: 'mapManually',
@@ -242,7 +277,7 @@ export class Appflowy implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['databaseRow'],
-						operation: ['create'],
+						operation: ['create', 'upsert'],
 						dataToSend: ['mapManually'],
 					},
 				},
@@ -439,27 +474,13 @@ export class Appflowy implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['databaseRow'],
-						operation: ['create'],
+						operation: ['create', 'upsert'],
 						dataToSend: ['json'],
 					},
 				},
-				default: '',
+				default: '{\n  "cells": {\n    "Field1": "Content",\n    "Field2": "Content"\n  }\n}',
 				required: true,
 				description: 'The set of columns as JSON data to send',
-			},
-			{
-				displayName: 'Database Row ID',
-				name: 'databaseRowId',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['databaseRow'],
-						operation: ['get'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'The ID of the database row to get',
 			},
 			{
 				displayName: 'Include Document Data',
@@ -483,7 +504,7 @@ export class Appflowy implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['databaseRow'],
-						operation: ['create'],
+						operation: ['create', 'upsert'],
 						includeDocumentData: [true],
 					},
 				},
@@ -690,7 +711,7 @@ export class Appflowy implements INodeType {
 				if (resource === 'databaseRow') {
 					const workspaceId = this.getNodeParameter('workspaceId', i) as string;
 					const databaseId = this.getNodeParameter('databaseId', i) as string;
-					if (operation === 'create') {
+					if (operation === 'create' || operation === 'upsert') {
 						const dataToSend = this.getNodeParameter('dataToSend', i) as string;
 						const includeDocumentData = this.getNodeParameter('includeDocumentData', i) as boolean;
 						let body: IDataObject = {};
@@ -768,8 +789,13 @@ export class Appflowy implements INodeType {
 							const documentData = this.getNodeParameter('documentData', i) as string;
 							body.document = documentData;
 						}
+						let requestMethod: IHttpRequestMethods = 'POST';
+						if (operation === 'upsert') {
+							requestMethod = 'PUT';
+							body.pre_hash = this.getNodeParameter('databaseRowPreHash', i) as string;
+						}
 						const endpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row`;
-						const response = await appflowyApiRequest.call(this, 'POST', endpoint, body);
+						const response = await appflowyApiRequest.call(this, requestMethod, endpoint, body);
 						returnData.push({ json: response });
 					}
 					if (operation === 'get') {
