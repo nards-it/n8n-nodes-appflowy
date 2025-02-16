@@ -139,6 +139,7 @@ export class Appflowy implements INodeType {
 				required: true,
 				description: 'The name or ID of the database to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
 				typeOptions: {
+					loadOptionsDependsOn: ['workspaceId'],
 					loadOptionsMethod: 'getDatabaseIds',
 				},
 			},
