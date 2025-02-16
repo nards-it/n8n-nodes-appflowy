@@ -8,7 +8,7 @@ import type {
 	INodePropertyOptions,
 	IHttpRequestMethods,
 } from 'n8n-workflow';
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import { appflowyApiRequest, toOptions, getRowDetails } from './GenericFunctions';
 import type { Database, LoadedResource, Workspace, PropertySelectValue, DateTimeCell } from './types';
 import moment from 'moment-timezone';
@@ -26,8 +26,9 @@ export class Appflowy implements INodeType {
 		defaults: {
 			name: 'AppFlowy',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
+		usableAsTool: true,
 		credentials: [
 			{
 				name: 'appflowyApi',
