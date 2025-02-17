@@ -7,7 +7,7 @@ export class AppflowyApi implements ICredentialType {
 
 	displayName = 'AppFlowy API';
 
-	documentationUrl = 'https://github.com/octionic/n8n-nodes-appflowy';
+	documentationUrl = 'https://github.com/octionic/n8n-nodes-appflowy/blob/master/README.md#Credentials';
 
 	properties: INodeProperties[] = [
 		{

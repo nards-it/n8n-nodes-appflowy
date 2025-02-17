@@ -1,46 +1,119 @@
-![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+<img src="https://raw.githubusercontent.com/octionic/n8n-nodes-appflowy/refs/heads/master/nodes/Appflowy/appflowy.svg" align="left" style="margin-right: .8em; height: 2em; width: 2em;">
 
-# n8n-nodes-starter
+# n8n-nodes-appflowy
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](n8n.io). It includes the node linter and other dependencies.
+This is an n8n community node. It lets you use AppFlowy in your n8n workflows. It comes with a Regular as well as a Trigger Node and is also available as Tool in AI Agents.
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+AppFlowy is a privacy-first, open source workspace for your notes, wikis, projects, and more.
 
-## Prerequisites
+[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-You need the following installed on your development machine:
+[Installation](#installation)  
+[Operations](#operations)  
+[Credentials](#credentials)  <!-- delete if no auth needed -->  
+[Compatibility](#compatibility)  
+[Usage](#usage)  <!-- delete if not using this section -->  
+[Resources](#resources)  
+[Version history](#version-history)  <!-- delete if not using this section -->  
 
-* [git](https://git-scm.com/downloads)
-* Node.js and pnpm. Minimum version Node 18. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
-  ```
-  pnpm install n8n -g
-  ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+## Installation
 
-## Using this starter
+Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
+Set the environment variable `N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true` to enable the Tool usage for AI agents.
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
-   ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
-   ```
-3. Run `pnpm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `pnpm lint` to check for errors or `pnpm lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+## Operations
 
-## More information
+### Trigger
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+- Row Added to Database
+- Row Updated in Database
 
-## License
+### Node
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+Workspaces
+- Get Many
+
+Databases
+- Get Many
+
+Database Rows
+- Create
+- Create or Update
+- Get
+- Get Many
+
+## Credentials
+
+_If users need to authenticate with the app/service, provide details here. You should include prerequisites (such as signing up with the service), available authentication methods, and how to set them up._
+
+### Prerequisites
+
+This works for both AppFlowy Cloud and self-hosted AppFlowy instances. The following describes how to set up the credentials for AppFlowy Cloud:
+
+- Signup for AppFlowy Cloud
+- Login to the admin panel here: https://beta.appflowy.cloud/
+- Navigate to "Change Password" and set a new password
+
+### Create credential
+
+- Create a new credential for AppFlowy in n8n
+- Set the following values:
+  - `Host`: `https://beta.appflowy.cloud/`
+  - `Username`: your email adress (could be from the connected Gmail account)
+  - `Password`: the password you just defined
+
+
+## Compatibility
+
+This Node has been built with n8n Version `1.79.0`, which is the first one that supports the Tool usage for AI agents.
+
+## Usage
+
+### Use custom JSON for properties
+
+While properties can be mapped comfortably, in some cases you might need a more dynamic input. For that you can specify a JSON object defining the properties and their values.
+
+In general the property can be referenced by its ID or name. Except for options of SingleSelect and MultiSelect. There it only works by name.
+
+Some examples:
+
+**SingleSelect:**
+
+```json
+"Status": "Done"
+```
+
+**MultiSelect:**
+
+```json
+"Tags": ["yellow", "orange"]
+```
+
+**Checkbox:**
+
+```json
+"External": true
+```
+
+**DateTime:**
+requires UTC timestamp in seconds
+
+```json
+"Due Date": {
+  "timestamp": "1739746800",
+  "end_timestamp": "1739800800",
+  "is_range": true,
+  "include_time": true
+}
+```
+
+## Resources
+
+* [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
+* [AppFlowy Documentation](https://docs.appflowy.io/docs)
+* [AppFlowy API Documentation](https://github.com/AppFlowy-IO/AppFlowy-Docs/tree/main/documentation/appflowy-cloud/openapi)
+
+## Version history
+
+See: https://github.com/octionic/n8n-nodes-appflowy/releases
