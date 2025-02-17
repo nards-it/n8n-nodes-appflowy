@@ -39,7 +39,8 @@
       "dist/credentials/AppflowyApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/Appflowy/Appflowy.node.js"
+      "dist/nodes/Appflowy/Appflowy.node.js",
+      "dist/nodes/Appflowy/AppflowyTrigger.node.js"
     ]
   },
   "devDependencies": {
