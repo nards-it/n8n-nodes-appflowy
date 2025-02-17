@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-appflowy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "n8n Community Node for AppFlowy - a privacy-first, open source workspace for your notes, wikis, projects, and more. Comes with both Regular and Trigger Node and is also available as Tool in AI Agents.",
   "keywords": [
     "n8n-community-node-package"
