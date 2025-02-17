@@ -5,6 +5,7 @@ import type {
 	ILoadOptionsFunctions,
 	IRequestOptions,
 	JsonObject,
+	IPollFunctions,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -14,7 +15,7 @@ import type { LoadedResource } from './types';
  * Make a request to AppFlowy API.
  */
 export async function appflowyApiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	body: IDataObject = {},
@@ -68,7 +69,10 @@ export async function appflowyApiRequest(
 /**
  * Authenticate and store tokens.
  */
-export async function getAccessToken(this: IExecuteFunctions | ILoadOptionsFunctions, reauthenticate = false): Promise<string> {
+export async function getAccessToken(
+	this: IExecuteFunctions | ILoadOptionsFunctions | IPollFunctions,
+	reauthenticate = false
+): Promise<string> {
 	// Check for existing access token
 	const nodeData = this.getWorkflowStaticData('node');
 	if (typeof nodeData.accessToken === 'string' && !reauthenticate) {
@@ -104,7 +108,7 @@ export const toOptions = (items: LoadedResource[]) =>
  * Fetch and process row details from AppFlowy API.
  */
 export async function getRowDetails(
-	this: IExecuteFunctions,
+	this: IExecuteFunctions | IPollFunctions,
 	workspaceId: string,
 	databaseId: string,
 	ids: string,
