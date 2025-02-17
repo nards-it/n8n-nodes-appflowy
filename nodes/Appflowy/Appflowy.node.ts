@@ -55,7 +55,7 @@ export class Appflowy implements INodeType {
 						value: 'databaseRow',
 					},
 				],
-				default: 'workspace',
+				default: 'databaseRow',
 			},
 
 			// Workspace
