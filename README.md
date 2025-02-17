@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/octionic/n8n-nodes-appflowy/refs/heads/master/nodes/Appflowy/appflowy.svg" align="left" style="margin-right: .8em; height: 2em; width: 2em;">
+<img src="https://raw.githubusercontent.com/octionic/n8n-nodes-appflowy/refs/heads/master/nodes/Appflowy/appflowy.svg" align="left" style="margin-right: 20px; height: 74px; width: 74px;">
 
 # n8n-nodes-appflowy
 
