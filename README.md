@@ -45,8 +45,6 @@ Database Rows
 
 ## Credentials
 
-_If users need to authenticate with the app/service, provide details here. You should include prerequisites (such as signing up with the service), available authentication methods, and how to set them up._
-
 ### Prerequisites
 
 This works for both AppFlowy Cloud and self-hosted AppFlowy instances. The following describes how to set up the credentials for AppFlowy Cloud:
