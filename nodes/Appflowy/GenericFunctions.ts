@@ -9,10 +9,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
-import {
-	LoggerProxy as Logger
-} from 'n8n-workflow';
-
 import type { LoadedResource } from './types';
 
 /**
@@ -28,15 +24,15 @@ export async function appflowyApiRequest(
 	const credentials = await this.getCredentials('appflowyApi');
 	const accessToken = await getAccessToken.call(this);
 
-	Logger.info("Starting appflowyApiRequest");
-	Logger.info("Printing current stacktrace");
-	Logger.info(JSON.stringify(getStackTrace()));
-	Logger.info("Printing this");
-	Logger.info(JSON.stringify(this));
-	Logger.info("Printing credentials");
-	Logger.info(JSON.stringify(credentials));
-	Logger.info("Printing access token");
-	Logger.info(JSON.stringify(accessToken));
+	this.logger.info("Starting appflowyApiRequest");
+	this.logger.info("Printing current stacktrace");
+	this.logger.info(JSON.stringify(getStackTrace()));
+	this.logger.info("Printing this");
+	this.logger.info(JSON.stringify(this));
+	this.logger.info("Printing credentials");
+	this.logger.info(JSON.stringify(credentials));
+	this.logger.info("Printing access token");
+	this.logger.info(JSON.stringify(accessToken));
 
 	const options: IRequestOptions = {
 		headers: {
@@ -57,43 +53,43 @@ export async function appflowyApiRequest(
 		options.body = undefined;
 	}
 
-	Logger.info("Caclulated options object");
-	Logger.info(JSON.stringify(Object));
+	this.logger.info("Caclulated options object");
+	this.logger.info(JSON.stringify(Object));
 
 	try {
-		Logger.info("Start first request with options");
+		this.logger.info("Start first request with options");
 		const responseData = await this.helpers.request(options);
-		Logger.info("First request completed");
-		Logger.info(JSON.stringify(responseData));
+		this.logger.info("First request completed");
+		this.logger.info(JSON.stringify(responseData));
 
 		// Check if the response status is 401
 		if (responseData.status === 401) {
-			Logger.info("First response status was 404. Recreate the access token")
+			this.logger.info("First response status was 404. Recreate the access token")
 			// Attempt to re-authenticate
 			const accessToken = await getAccessToken.call(this, true);
-			Logger.info("Recreated access token");
-			Logger.info(JSON.stringify(accessToken));
-			Logger.info("Printing this");
-			Logger.info(JSON.stringify(this));
+			this.logger.info("Recreated access token");
+			this.logger.info(JSON.stringify(accessToken));
+			this.logger.info("Printing this");
+			this.logger.info(JSON.stringify(this));
 			// Ensure headers is defined
 			if (!options.headers) {
 				options.headers = {};
 			}
 			// Update the options with the new access token and retry the request
 			options.headers.Authorization = `Bearer ${accessToken}`;
-			Logger.info("Recreated options");
-			Logger.info(JSON.stringify(options));
-			Logger.info("Start second request with options")
+			this.logger.info("Recreated options");
+			this.logger.info(JSON.stringify(options));
+			this.logger.info("Start second request with options")
 			const retryResponseData = await this.helpers.request(options);
-			Logger.info("Second request completed");
-			Logger.info(JSON.stringify(retryResponseData));
+			this.logger.info("Second request completed");
+			this.logger.info(JSON.stringify(retryResponseData));
 			return retryResponseData;
 		}
 
 		return responseData;
 	} catch (error) {
-		Logger.info("Entered into catch");
-		Logger.error(JSON.stringify(error));
+		this.logger.info("Entered into catch");
+		this.logger.error(JSON.stringify(error));
 		throw new NodeApiError(this.getNode(), error as JsonObject);
 	}
 }
@@ -111,19 +107,19 @@ export async function getAccessToken(
 		return nodeData.accessToken;
 	}
 
-	Logger.info("getAccessToken started");
+	this.logger.info("getAccessToken started");
 
-	Logger.info("Printing nodeData");
-	Logger.info(JSON.stringify(nodeData));
+	this.logger.info("Printing nodeData");
+	this.logger.info(JSON.stringify(nodeData));
 
-	Logger.info("Printing this");
-	Logger.info(JSON.stringify(this));
+	this.logger.info("Printing this");
+	this.logger.info(JSON.stringify(this));
 
 	const credentials = await this.getCredentials('appflowyApi');
-	Logger.info("Printing credentials");
-	Logger.info(JSON.stringify(credentials));
+	this.logger.info("Printing credentials");
+	this.logger.info(JSON.stringify(credentials));
 
-	Logger.info("Starting accessToken request");
+	this.logger.info("Starting accessToken request");
 	const response = await this.helpers.request({
 		method: 'POST',
 		url: `${credentials.host}/gotrue/token?grant_type=password`,
@@ -136,19 +132,19 @@ export async function getAccessToken(
 		},
 		json: true,
 	});
-	Logger.info("Completed accessToken request, printing response");
-	Logger.info(JSON.stringify(response));
+	this.logger.info("Completed accessToken request, printing response");
+	this.logger.info(JSON.stringify(response));
 
 
 	// Store the tokens in workflow static data
 	nodeData.accessToken = response.access_token;
 	nodeData.refreshToken = response.refresh_token;
 
-	Logger.info("Printing nodeData");
-	Logger.info(JSON.stringify(nodeData));
+	this.logger.info("Printing nodeData");
+	this.logger.info(JSON.stringify(nodeData));
 
-	Logger.info("Printing this");
-	Logger.info(JSON.stringify(this));
+	this.logger.info("Printing this");
+	this.logger.info(JSON.stringify(this));
 
 	return response.access_token;
 }
@@ -167,10 +163,10 @@ export async function getRowDetails(
 	includeDocumentData: boolean,
 	simplify: boolean
 ): Promise<IDataObject[]> {
-	Logger.info("Started getRowDetails");
+	this.logger.info("Started getRowDetails");
 
-	Logger.info("Printing this");
-	Logger.info(JSON.stringify(this));
+	this.logger.info("Printing this");
+	this.logger.info(JSON.stringify(this));
 
 	const args = includeDocumentData ? '&with_doc=true' : '';
 	const detailEndpoint = `/api/workspace/${workspaceId}/database/${databaseId}/row/detail?ids=${ids}${args}`;
@@ -196,7 +192,7 @@ export async function getRowDetails(
 		return detailResponse.data;
 
 	} finally {
-		Logger.info("Completed getRowDetails");
+		this.logger.info("Completed getRowDetails");
 	}
 }
 
