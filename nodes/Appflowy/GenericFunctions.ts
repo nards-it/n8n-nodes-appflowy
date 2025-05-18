@@ -22,7 +22,7 @@ export async function appflowyApiRequest(
 	qs: IDataObject = {},
 ) {
 	const credentials = await this.getCredentials('appflowyApi');
-	const accessToken = await getAccessToken.call(this);
+	const accessToken = await getAccessToken.call(this, true);
 
 	this.logger.info("Starting appflowyApiRequest");
 	this.logger.info("Printing current stacktrace");
