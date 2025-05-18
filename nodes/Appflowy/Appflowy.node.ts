@@ -843,6 +843,8 @@ export class Appflowy implements INodeType {
 					}
 				}
 			} catch (error) {
+				this.logger.info("Error on executing node");
+				this.logger.error(error);
 				if (this.continueOnFail()) {
 					returnData.push({ error: error.message });
 					continue;
