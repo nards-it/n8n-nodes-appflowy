@@ -849,7 +849,7 @@ export class Appflowy implements INodeType {
 					returnData.push({ error: error.message });
 					continue;
 				}
-				throw new NodeOperationError(this.getNode(), error, {
+				throw new NodeOperationError(this.getNode(), "ErrorObject: "+JSON.stringify(error), {
 					itemIndex: i,
 				});
 			}
